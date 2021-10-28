@@ -96,7 +96,7 @@ parser.add_argument('--gp', default=None, type=str, metavar='POOL',
                     help='Global pool type, one of (fast, avg, max, avgmax, avgmaxc). Model default if None.')
 parser.add_argument('--img-size', type=int, default=None, metavar='N',
                     help='Image patch size (default: None => model default)')
-parser.add_argument('--ffcv-out-dir', type=str, required=True)
+parser.add_argument('--ffcv-out-path', type=str, required=True)
 parser.add_argument('--input-size', default=None, nargs=3, type=int,
                     metavar='N N N', help='Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if empty')
 parser.add_argument('--crop-pct', default=None, type=float,
@@ -652,7 +652,7 @@ def main():
     pd.Series({
         'test_acc':save_metric,
         'per_epoch_time':epoch_time
-    }).to_csv(args.ffcv_out_dir)
+    }).to_csv(args.ffcv_out_path)
 
 def train_one_epoch(
         epoch, model, loader, optimizer, loss_fn, args,
