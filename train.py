@@ -19,6 +19,14 @@ import pandas as pd
 import time
 import yaml
 import os
+
+num_epochs_ = None
+if 'EPOCHS' in os.environ:
+    try:
+        num_epochs_ = int(os.environ['EPOCHS'])
+    except:
+        pass
+
 import logging
 from collections import OrderedDict
 from contextlib import suppress
@@ -152,19 +160,19 @@ parser.add_argument('--warmup-lr', type=float, default=0.0001, metavar='LR',
                     help='warmup learning rate (default: 0.0001)')
 parser.add_argument('--min-lr', type=float, default=1e-6, metavar='LR',
                     help='lower lr bound for cyclic schedulers that hit 0 (1e-5)')
-parser.add_argument('--epochs', type=int, default=300, metavar='N',
-                    help='number of epochs to train (default: 300)')
+parser.add_argument('--epochs', type=int, default=(num_epochs_ or 90), metavar='N',
+                    help='number of epochs to train (default: 90)')
 parser.add_argument('--epoch-repeats', type=float, default=0., metavar='N',
                     help='epoch repeat multiplier (number of times to repeat dataset epoch per train epoch).')
 parser.add_argument('--start-epoch', default=None, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--decay-epochs', type=float, default=100, metavar='N',
+parser.add_argument('--decay-epochs', type=float, default=30,
                     help='epoch interval to decay LR')
-parser.add_argument('--warmup-epochs', type=int, default=3, metavar='N',
+parser.add_argument('--warmup-epochs', type=int, default=0, metavar='N',
                     help='epochs to warmup LR, if scheduler supports')
-parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
+parser.add_argument('--cooldown-epochs', type=int, default=0, metavar='N',
                     help='epochs to cooldown LR at min_lr, after cyclic schedule ends')
-parser.add_argument('--patience-epochs', type=int, default=10, metavar='N',
+parser.add_argument('--patience-epochs', type=int, default=0, metavar='N',
                     help='patience epochs for Plateau LR scheduler (default: 10')
 parser.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                     help='LR decay rate (default: 0.1)')
@@ -621,7 +629,9 @@ def main():
                     _logger.info("Distributing BatchNorm running means and vars")
                 distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
 
+            pre_valid = time.time()
             eval_metrics = validate(model, loader_eval, validate_loss_fn, args, amp_autocast=amp_autocast)
+            valid_time = time.time() - pre_valid
 
             if model_ema is not None and not args.model_ema_force_cpu:
                 if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
@@ -651,7 +661,8 @@ def main():
 
     pd.Series({
         'test_acc':save_metric,
-        'per_epoch_time':epoch_time
+        'per_epoch_time':epoch_time,
+        'per_valid_time':valid_time
     }).to_csv(args.ffcv_out_path)
 
 def train_one_epoch(
